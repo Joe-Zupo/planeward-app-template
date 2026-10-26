@@ -83,6 +83,63 @@ Deploy `apps/web` anywhere that runs Next.js with a public `https` URL, with a P
 
 ## How it works
 
+### Where things run
+
+```mermaid
+flowchart LR
+  subgraph browser["Member's browser"]
+    host["Planeward community page<br/>(host)"]
+    frame["Your app UI<br/>(iframe)"]
+  end
+
+  subgraph yours["Your app (apps/web)"]
+    server["API routes + webhook route<br/>requireViewer() · handlePlanewardWebhook()"]
+    db[("Postgres<br/>@repo/db")]
+  end
+
+  pw["Planeward<br/>app.planeward.com<br/>JWKS · Community API · webhooks"]
+
+  host <-->|"postMessage<br/>viewer token + theme"| frame
+  frame -->|"Bearer viewer token"| server
+  server --> db
+  server -->|"verify token (JWKS)<br/>API calls (app secret)"| pw
+  pw -->|"signed webhooks"| server
+```
+
+In development, Planeward reaches your machine through the tunnel: `https://<tunnel>` forwards to `http://localhost:3005`, which serves both the iframe pages and the API routes.
+
+### One request, step by step
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Member
+  participant Host as Planeward page (host)
+  participant App as Your app UI (iframe)
+  participant Server as Your API routes
+  participant PW as Planeward API + JWKS
+  participant DB as Your Postgres
+
+  Member->>Host: Open the app channel
+  Host->>App: Load experience URL in an iframe
+  App->>Host: postMessage planeward:app:ready
+  Host->>PW: Mint viewer token (checks member can view the channel)
+  PW-->>Host: JWT, 5 min, aud = your app ID
+  Host->>App: postMessage planeward:app:token (token, view, channelId, theme)
+  App->>Server: GET /api/posts (Authorization: Bearer token)
+  Server->>PW: Verify signature with JWKS (cached)
+  Server->>Server: Check aud, expiry, installation not uninstalled
+  Server->>DB: Read posts WHERE installationId, channelId (from the token)
+  DB-->>Server: Rows
+  Server-->>App: JSON
+  opt Admin action, e.g. Announce as the app
+    Server->>PW: POST /api/v1/community/channels/{id}/messages (app secret)
+  end
+  Note over PW,Server: Separately, Planeward POSTs signed webhooks<br/>(app.installed, app.uninstalled, community.membership.*)<br/>to /api/webhooks/planeward, which verifies, dedupes and stores them.
+```
+
+### In short
+
 1. **Handshake.** The page loads in the iframe and `PlanewardProvider` performs a `postMessage` handshake with the host. The host returns the context, theme and a short-lived **viewer token** (a JWT signed by Planeward with `aud` = your app ID).
 2. **Viewer token.** `useViewerFetch()` sends that token as `Authorization: Bearer <token>` on every call to your own API.
 3. **`requireViewer`.** Every API route starts with `requireViewer(request)`, which verifies the token against `PLANEWARD_BASE_URL` and `PLANEWARD_APP_ID` and returns the claims (or a 401/403 response).
