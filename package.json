@@ -12,7 +12,7 @@
     "test": "turbo run test",
     "format:check": "turbo run format:check",
     "format:write": "turbo run format:write",
-    "format:root": "prettier --check \"*.{md,json,yaml,yml}\" \".github/**/*.yml\"",
+    "format:root": "prettier --check \"*.{md,json,yaml,yml}\" \"docs/**/*.md\" \".github/**/*.yml\"",
     "db:generate": "turbo run db:generate --filter=@repo/db",
     "db:migrate": "turbo run db:migrate --filter=@repo/db"
   },

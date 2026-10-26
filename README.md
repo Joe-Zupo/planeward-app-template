@@ -160,6 +160,7 @@ sequenceDiagram
 
 - Replace the Board example (`apps/web` experience, `/api/posts`, and the `posts` table) with your feature. Keep `requireViewer` and claims-derived ids in every route.
 - Add tables in `packages/db/src/schema.ts`, then run `pnpm db:generate` and `pnpm db:migrate`.
+- Fill in [`docs/for-communities.md`](docs/for-communities.md) and share it with the communities that install your app. It covers installing, the permissions you request, your data handling and uninstalling, and links to Planeward's [Apps in your community](https://docs.planeward.com/docs/community/apps) guide.
 
 ## Scripts
 
