@@ -102,7 +102,7 @@ The SDK lives in `packages/app-sdk` of the Planeward app template repo and is th
 1. On `main`, run `pnpm --filter @planeward/app-sdk release` (or `release patch|minor|major`). bumpp updates `package.json`, commits `chore(release): app-sdk-vX.Y.Z` and creates the tag `app-sdk-vX.Y.Z`.
 2. Push the commit and tag: `git push --follow-tags`.
 
-The `Release app SDK` workflow (`.github/workflows/app-sdk-release.yml`) runs on that tag in the `Release` environment. It checks that the tag matches `package.json`, then installs with pnpm, builds, typechecks, tests, lints, publishes `@planeward/app-sdk` to npm with trusted publishing (OIDC, with provenance) and creates a GitHub release. No npm token is stored in the repo. To retry a failed release, re-run the workflow run.
+The `Release app SDK` workflow (`.github/workflows/app-sdk-release.yml`) runs on that tag in the `Release` environment. It checks that the tag matches `package.json`, then installs with pnpm, builds, typechecks, tests, lints, publishes `@planeward/app-sdk` to npm with trusted publishing (OIDC, with provenance) creates a GitHub release and moves the `app-sdk-latest` tag to the released commit. No npm token is stored in the repo. To retry a failed release, re-run the workflow run.
 
 One-time setup: npm can only trust a package that already exists, so publish the first version by hand, then add the trusted publisher (needs npm 11.15+ and 2FA on your npm account):
 

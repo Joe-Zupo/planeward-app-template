@@ -62,3 +62,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: Release ${{ github.ref_name }}
+
+      - name: Move app-sdk-latest tag
+        run: |
+          git tag -f app-sdk-latest
+          git push -f origin app-sdk-latest
