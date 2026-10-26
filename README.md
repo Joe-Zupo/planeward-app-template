@@ -1,5 +1,11 @@
 # Planeward App Template
 
+> [!WARNING]
+> **Deprecated.** This repository is archived and no longer maintained. It has been split into:
+>
+> - [`planeward/app-template`](https://github.com/planeward/app-template): the Planeward Community App template.
+> - [`planeward/sdk`](https://github.com/planeward/sdk): the SDK, published as [`@planeward/sdk`](https://www.npmjs.com/package/@planeward/sdk). `@planeward/app-sdk` is deprecated; switch your imports to `@planeward/sdk`.
+
 A starter for building Planeward Community Apps: third-party Next.js apps that Planeward shows in an iframe inside a community. Your app appears as a **member channel** (`/experience`) and a **staff dashboard** (`/dashboard`), and gets:
 
 - a verified viewer identity (short-lived signed token from the host),
