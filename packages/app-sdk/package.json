@@ -5,6 +5,11 @@
   "description": "Build apps that run inside Planeward communities: iframe handshake, viewer token verification, webhooks, and a typed API client.",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enum314/planeward-app-template.git",
+    "directory": "packages/app-sdk"
+  },
   "prettier": "@repo/prettier-config/node",
   "files": [
     "dist"
@@ -24,6 +29,7 @@
   },
   "scripts": {
     "build": "tsdown",
+    "release": "bumpp --commit \"chore(release): app-sdk-v%s\" --tag \"app-sdk-v%s\" --no-push",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "tsx --test --test-timeout=30000 src/*.test.ts",
@@ -36,6 +42,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
+    "bumpp": "^12.3.0",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "tsdown": "^0.23.2",

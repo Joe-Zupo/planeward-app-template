@@ -99,9 +99,21 @@ export async function POST(request: Request) {
 
 The SDK lives in `packages/app-sdk` of the Planeward app template repo and is the only package published to npm.
 
-1. Bump `version` in `packages/app-sdk/package.json` and merge it to `main`.
-2. Push a matching tag: `git tag app-sdk-v0.1.0 && git push origin app-sdk-v0.1.0`.
+1. On `main`, run `pnpm --filter @planeward/app-sdk release` (or `release patch|minor|major`). bumpp updates `package.json`, commits `chore(release): app-sdk-vX.Y.Z` and creates the tag `app-sdk-vX.Y.Z`.
+2. Push the commit and tag: `git push --follow-tags`.
 
-The `Release app SDK` workflow (`.github/workflows/app-sdk-release.yml`) checks that the tag matches `package.json`, then installs with pnpm, builds, typechecks, tests, lints and publishes `@planeward/app-sdk` to npm. It needs the `NPM_TOKEN` repository secret, an npm automation token with publish rights on the `@planeward` scope. You can also run it from the Actions tab with a tag name.
+The `Release app SDK` workflow (`.github/workflows/app-sdk-release.yml`) runs on that tag in the `Release` environment. It checks that the tag matches `package.json`, then installs with pnpm, builds, typechecks, tests, lints, publishes `@planeward/app-sdk` to npm with trusted publishing (OIDC, with provenance) and creates a GitHub release. No npm token is stored in the repo. To retry a failed release, re-run the workflow run.
+
+One-time setup: npm can only trust a package that already exists, so publish the first version by hand, then add the trusted publisher (needs npm 11.15+ and 2FA on your npm account):
+
+```bash
+pnpm --filter @planeward/app-sdk build
+cd packages/app-sdk
+npm login
+pnpm publish --access public
+npm trust github --file app-sdk-release.yml --env Release --allow-publish
+```
+
+Don't push a tag for that first version; the workflow would fail publishing a version that already exists.
 
 To check a release locally: `pnpm --filter @planeward/app-sdk build && pnpm --filter @planeward/app-sdk test`.
