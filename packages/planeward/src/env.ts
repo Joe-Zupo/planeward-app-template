@@ -14,7 +14,7 @@ export const env = createEnv({
     /** Signing secret for `x-planeward-signature`. */
     PLANEWARD_WEBHOOK_SECRET: z.string().min(1),
     /** Planeward deployment that issues viewer tokens and serves the API. */
-    PLANEWARD_BASE_URL: z.url().default("http://localhost:3000"),
+    PLANEWARD_BASE_URL: z.url().default("https://app.planeward.com"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

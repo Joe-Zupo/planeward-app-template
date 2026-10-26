@@ -41,6 +41,7 @@ async function appOrigin(): Promise<string> {
 
 export default async function SetupPage() {
   const origin = await appOrigin();
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(origin);
   const env = envStatus();
   const missing = env.filter((entry) => !entry.set).length;
 
@@ -97,6 +98,17 @@ export default async function SetupPage() {
             host; use your public HTTPS domain in production.
           </CardDescription>
         </CardHeader>
+        {isLocal ? (
+          <CardContent>
+            <p className="bg-muted rounded-md px-3 py-2 text-sm">
+              Planeward can’t reach <code>localhost</code>. Start a tunnel to
+              port 3005 (
+              <code>cloudflared tunnel --url http://localhost:3005</code>
+              ), add its hostname to <code>ALLOWED_DEV_ORIGINS</code>, and open
+              this page through the tunnel URL to get the URLs to register.
+            </p>
+          </CardContent>
+        ) : null}
         <CardContent className="flex flex-col gap-4">
           {urls.map((url) => (
             <CopyField key={url.label} label={url.label} value={url.value} />
@@ -131,6 +143,11 @@ export default async function SetupPage() {
             <li>
               Start Postgres with <code>docker compose up -d</code> and run{" "}
               <code>pnpm db:migrate</code>.
+            </li>
+            <li>
+              Start a tunnel to port 3005, put its hostname in{" "}
+              <code>ALLOWED_DEV_ORIGINS</code> in <code>.env</code>, restart{" "}
+              <code>pnpm dev</code>, and open this page through the tunnel.
             </li>
             <li>
               Create the app in Planeward under Settings › Apps › Developer with

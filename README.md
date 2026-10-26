@@ -19,28 +19,67 @@ A starter for building Planeward Community Apps: third-party Next.js apps that P
 
 ## Quickstart
 
-Requires Node 24+, pnpm 11 and Docker.
+Requires Node 24+, pnpm 11, Docker and a tunnel ([cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) or [ngrok](https://ngrok.com/download)).
 
-```bash
-pnpm install
-cp .env.example .env
-docker compose up -d   # Postgres on :5433
-pnpm db:migrate
-pnpm dev               # app on http://localhost:3005
-```
+Planeward is hosted at `https://app.planeward.com`. It loads your app in an iframe and sends it webhooks, so it must reach your app over public `https`; `localhost` URLs are rejected. During development, expose your dev server through a tunnel.
 
-Open http://localhost:3005 for the setup page. It lists the URLs to register and which env vars are set.
+1. Install and start the app:
+
+   ```bash
+   pnpm install
+   cp .env.example .env
+   docker compose up -d   # Postgres on :5433
+   pnpm db:migrate
+   pnpm dev               # app on http://localhost:3005
+   ```
+
+2. In another terminal, start a tunnel to port 3005:
+
+   ```bash
+   cloudflared tunnel --url http://localhost:3005   # prints https://<random>.trycloudflare.com
+   # or
+   ngrok http 3005                                  # prints https://<random>.ngrok-free.app
+   ```
+
+3. Put the tunnel **hostname** (no `https://`, no path) in `.env`, then restart `pnpm dev`:
+
+   ```bash
+   ALLOWED_DEV_ORIGINS="abc-123.trycloudflare.com"
+   ```
+
+   Next.js only serves dev assets to `localhost` and the hosts listed here. Without it the app loads inside Planeward but never connects.
+
+4. Open the setup page through the tunnel (`https://abc-123.trycloudflare.com/`). It shows which env vars are set and the exact URLs to register.
 
 ## Register in Planeward
 
-1. In **Settings › Apps › Developer**, create an app with:
-   - Experience URL: `http://localhost:3005/experience`
-   - Dashboard URL: `http://localhost:3005/dashboard`
-   - Webhook URL: `http://localhost:3005/api/webhooks/planeward`
+1. In **Settings › Apps › Developer**, create an app with your tunnel origin:
+   - Experience URL: `https://abc-123.trycloudflare.com/experience`
+   - Dashboard URL: `https://abc-123.trycloudflare.com/dashboard`
+   - Webhook URL: `https://abc-123.trycloudflare.com/api/webhooks/planeward`
    - Both scopes: **Community — read members** (`COMMUNITY_MEMBERS_READ`) and **Community — post messages as the app** (`COMMUNITY_MESSAGES_WRITE`).
-2. Copy the app ID, app secret and webhook secret into `.env` (`PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`), and set `PLANEWARD_BASE_URL` to your Planeward deployment. Restart `pnpm dev`.
-3. Install it from the install link (or **Install into this workspace**).
-4. In **Community › Apps**, add it as a channel.
+2. Copy the app ID, app secret and webhook secret into `.env` (`PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`). They are shown once; rotate them from the app's menu if lost. Restart `pnpm dev`.
+3. Install it from the install link (or **Install into this workspace**). Installing needs a workspace with **Community** turned on (Business plan or higher).
+4. In **Community › Apps**, add it as a channel. Members see it in the community sidebar; staff open the dashboard from **Community › Apps**.
+
+Viewer tokens are verified against `https://app.planeward.com/api/auth/jwks` and API calls go to Planeward with your app secret. Both are outbound requests, so they work from your machine.
+
+Use one Planeward app per environment, e.g. "My App (dev)" pointing at your tunnel and "My App" pointing at production. A token issued for a different app fails with `PlanewardTokenAudienceError`.
+
+### Tunnel tips
+
+- Quick tunnels get a new URL every run, so you would edit the app's URLs (in its menu, **Edit**) and `ALLOWED_DEV_ORIGINS` each time. For a stable URL, use a named Cloudflare tunnel on your own domain or a reserved ngrok domain.
+- Webhooks (`app.installed`, `app.uninstalled`, `community.membership.*`) are retried after 1 min, 10 min, 1 h and 6 h if your tunnel is down, so events sent while it was offline arrive later.
+- Only run the tunnel while you need it, and never commit `.env`.
+
+## Deploying
+
+Deploy `apps/web` anywhere that runs Next.js with a public `https` URL, with a Postgres database:
+
+1. Set `PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET` and `DATABASE_URL` for your production Planeward app. Leave `ALLOWED_DEV_ORIGINS` unset; `PLANEWARD_BASE_URL` defaults to `https://app.planeward.com`.
+2. Run `pnpm db:migrate` against the production database.
+3. Point the production Planeward app at the deployed URLs (`/experience`, `/dashboard`, `/api/webhooks/planeward`).
+4. Do not add `X-Frame-Options` or a restrictive `frame-ancestors`: communities can live on custom domains.
 
 ## How it works
 

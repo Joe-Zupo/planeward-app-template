@@ -24,6 +24,7 @@
       "persistent": true,
       "cache": false,
       "passThroughEnv": [
+        "ALLOWED_DEV_ORIGINS",
         "NODE_ENV",
         "DATABASE_URL",
         "PLANEWARD_APP_ID",
