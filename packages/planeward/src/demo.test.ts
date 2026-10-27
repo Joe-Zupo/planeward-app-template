@@ -65,11 +65,16 @@ describe("demo viewer", () => {
     }
   });
 
-  it("encodes non-ASCII names", () => {
+  it("is not an alg-none JWT, which Vercel's firewall blocks", () => {
     const token = encodeDemoToken({
       ...demoClaims("member", "experience"),
       name: "Zoë",
     });
-    assert.match(token, /^[\w-]+\.[\w-]+\.$/);
+    assert.match(token, /^demo\.[\w-]+\.demo$/);
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")
+    );
+    assert.equal(payload.name, "Zoë");
+    assert.equal(demoViewerFromToken(token).role, "member");
   });
 });

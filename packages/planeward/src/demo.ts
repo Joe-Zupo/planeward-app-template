@@ -73,14 +73,16 @@ function base64UrlDecode(text: string): string {
 }
 
 /**
- * An unsigned, JWT-shaped demo token (`alg: none`). The browser sends it like
- * a viewer token, so the UI code is the same in both modes. It proves
- * nothing: the server reads only the role and view from it, and only in demo
- * mode.
+ * An unsigned demo token, `demo.<base64url claims>.demo`. The browser sends
+ * it like a viewer token, and the claims sit in the second segment like a
+ * JWT payload, so the UI code is the same in both modes. It proves nothing:
+ * the server reads only the role and view from it, and only in demo mode.
+ *
+ * It is deliberately not an `alg: none` JWT. Vercel's firewall rejects those
+ * with a 403 before the request reaches the app.
  */
 export function encodeDemoToken(claims: AppViewerTokenClaims): string {
-  const header = base64UrlEncode(JSON.stringify({ alg: "none", typ: "JWT" }));
-  return `${header}.${base64UrlEncode(JSON.stringify(claims))}.`;
+  return `demo.${base64UrlEncode(JSON.stringify(claims))}.demo`;
 }
 
 /**
