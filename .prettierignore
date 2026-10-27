@@ -1,6 +1,8 @@
 node_modules
-.next
-.turbo
-dist
+vendor
+public
+storage
+bootstrap/cache
 pnpm-lock.yaml
-**/drizzle/meta
+composer.lock
+*.php

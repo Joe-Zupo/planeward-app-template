@@ -15,12 +15,16 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      SKIP_ENV_VALIDATION: "1"
-      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pdo_sqlite
+          coverage: none
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -32,10 +36,27 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          composer install --no-interaction --prefer-dist
+          pnpm install --frozen-lockfile
 
-      - name: Build, typecheck, lint, test, format
-        run: pnpm turbo run build typecheck lint test format:check
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
 
-      - name: Format root files
-        run: pnpm format:root
+      - name: Build assets
+        run: pnpm build
+
+      - name: PHP format
+        run: vendor/bin/pint --test
+
+      - name: PHP tests
+        run: php artisan test
+
+      - name: Typecheck, lint, test, format
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm format:check

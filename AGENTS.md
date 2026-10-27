@@ -1,48 +1,41 @@
 # AGENTS.md
 
-Conventions for AI agents working in this repo (a Planeward Community App template).
+Conventions for AI agents working in this repo, a Planeward Community App template built with Laravel and React.
 
 ## Layout
 
-- `apps/web`: the Next.js 16 app (port 3005).
-- `packages/app-sdk`: `@planeward/app-sdk`, the public SDK. Builds to `dist` with tsdown.
-- `packages/planeward`: `@repo/planeward` (`/client`, `/server`, `/env`).
-- `packages/db`: `@repo/db` (Drizzle schema, client, migrations).
-- `packages/ui`: `@repo/ui` (shadcn/ui + Tailwind v4).
-- `packages/{typescript,eslint,prettier}-config`: shared configs.
+- `app/Planeward`: viewer token verification (`ViewerTokenVerifier`, `Viewer`), the API client (`PlanewardClient`, built with `Planeward::forViewer()`), webhooks (`Webhooks/WebhookProcessor`, `WebhookStore`, `InstallationRules`, `WebhookReceived`).
+- `app/Http/Middleware/RequireViewer.php`: the `viewer` route middleware.
+- `app/Http/Controllers`, `app/Http/Resources`, `app/Models`, `database/migrations`, `routes/{web,api}.php`: standard Laravel.
+- `resources/js`: the React app. `pages/` are mounted by `app.tsx`, `components/ui/` holds shadcn/ui, `planeward/` holds the handshake store, `PlanewardProvider` and `useViewerFetch`.
+- `resources/views/app.blade.php`: the single Blade shell.
 
-Internal packages are named `@repo/*` and are JIT TypeScript: they export `src/*.ts` directly and are listed in the app's `transpilePackages`. Only `@planeward/app-sdk` has a build step; turbo `dev`, `build`, `typecheck`, `lint` and `test` depend on `^build`. Workspace deps use `workspace:*`; shared versions live in the `catalog:` in `pnpm-workspace.yaml`.
+`@planeward/app-sdk` comes from npm and is only used in the browser. Its server half is ported to PHP in `app/Planeward`. Keep `app/Planeward/Protocol.php` in step with the SDK's `protocol.ts`.
 
 ## Commands
 
 ```bash
-pnpm dev                 # all dev servers
-pnpm build               # build everything
+pnpm dev                 # php artisan serve --port=3005 + vite build --watch
+pnpm build
+php artisan test         # PHPUnit
+pnpm test                # Vitest
 pnpm typecheck
 pnpm lint
-pnpm test
+vendor/bin/pint          # PHP formatting (--test to check)
 pnpm format:check        # or format:write
-pnpm db:generate         # after schema changes
-pnpm db:migrate
-pnpm --filter <pkg> <script>
+php artisan migrate
 ```
 
-After editing files, run Prettier on the changed paths: `pnpm exec prettier --write <paths>`.
+After editing files, format the changed paths: `vendor/bin/pint <paths>` for PHP, `pnpm exec prettier --write <paths>` for everything else.
 
 ## Rules
 
-- **Every API route calls `requireViewer(request)`** from `@repo/planeward/server` first (`{ role: "admin" }` for staff-only routes). Return its `response` when `ok` is false.
-- **Scope data by claims only.** `installationId`, `channelId` and the author (`sub`) come from the verified viewer, never from the request body, query or headers. The one deliberate exception is an admin choosing a _target_ channel (`/api/announce`): the installation still comes from the claims, and Planeward enforces which channels the app may post to.
-- Use `planewardForViewer(viewer)` for Planeward API calls; never build a client from a client-supplied installation id.
-- Webhooks go through `handlePlanewardWebhook`; do not process a payload before signature verification.
-- Secrets (`PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`) are server-only. Read env through `@repo/planeward/env`, not `process.env` in app code (exception: `apps/web/src/lib/env-status.ts`, which only reports set/unset for the setup page).
-- Do not add `X-Frame-Options` or rely on cookies: the app runs in a cross-origin iframe.
-- **Schema changes:** edit `packages/db/src/schema.ts`, then `pnpm db:generate` to create a migration. Never hand-edit generated migrations.
-
-## Next.js
-
-This is a recent Next.js version whose APIs may differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing Next code.
-
-## Turborepo
-
-Turbo config and CLI behavior vary by version. Read `docs/README.md` in the installed `turbo` package (`node -p "require.resolve('turbo/package.json')"`) and the relevant pages before changing `turbo.json`.
+- **Every API route uses the `viewer` middleware** (`viewer:admin` for staff-only routes). The webhook route is the only exception. Read the viewer with `Viewer::from($request)`.
+- **Scope data by claims only.** `installationId`, `channelId` and the author (`sub`) come from the verified viewer, never from the request body, query or headers. The one deliberate exception is an admin choosing a _target_ channel (`/api/announce`). The installation still comes from the claims, and Planeward enforces which channels the app may post to.
+- Use `Planeward::forViewer($viewer)` for Planeward API calls. Never build a `PlanewardClient` from a client-supplied installation id.
+- Webhooks go through `WebhookProcessor`. Do not read a payload before signature verification. Add behavior with a `WebhookReceived` listener, not by editing the processor.
+- Secrets (`PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`) are server-only. Read settings through `config('planeward.*')`, never `env()` outside `config/`. Never pass them to a view or a `VITE_` variable.
+- Do not add `X-Frame-Options`, sessions, cookies, CSRF or Sanctum. The app runs in a cross-origin iframe, and `bootstrap/app.php` removes the session and cookie middleware on purpose.
+- API errors are `ApiError::make($status, $message)`, shaped `{ "error": "..." }`. Validate with `Validator::make` and return a 400 with the first message. Don't use `$request->validate()`, which returns Laravel's 422 shape.
+- API JSON is camelCase through `app/Http/Resources`. Keep `resources/js/lib/types.ts` in step with the resources.
+- **Schema changes:** add a new migration with `php artisan make:migration`. Never edit a migration that has already shipped.

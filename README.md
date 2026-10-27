@@ -1,37 +1,53 @@
 # Planeward App Template
 
-A starter for building Planeward Community Apps: third-party Next.js apps that Planeward shows in an iframe inside a community. Your app appears as a **member channel** (`/experience`) and a **staff dashboard** (`/dashboard`), and gets:
+A starter for building Planeward Community Apps with Laravel and React. Planeward shows your app in an iframe inside a community. It appears as a **member channel** (`/experience`) and a **staff dashboard** (`/dashboard`), and gets:
 
-- a verified viewer identity (short-lived signed token from the host),
-- a typed API client for the Planeward API,
+- a verified viewer identity (a short-lived signed token from the host),
+- a Planeward API client,
 - signed webhooks (`app.installed`, `app.uninstalled`, and more).
+
+## Stack
+
+- Laravel 13 (PHP 8.3+) for the pages, API routes and webhooks.
+- React 19 and TypeScript, built by Vite through `laravel-vite-plugin`.
+- shadcn/ui components and Tailwind v4.
+- PostgreSQL through Eloquent and Laravel migrations.
+- `@planeward/app-sdk` from npm for the iframe handshake in the browser. The server side of the SDK (token verification, webhooks, API client) is ported to PHP in `app/Planeward`.
 
 ## Layout
 
-| Path                                                             | Package              | What it is                                                                                |
-| ---------------------------------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------- |
-| `apps/web`                                                       | `@repo/web`          | Next.js app on port 3005: setup page, experience, dashboard, API routes                   |
-| `packages/app-sdk`                                               | `@planeward/app-sdk` | Public SDK: iframe handshake, token verification, webhooks, API client (builds to `dist`) |
-| `packages/planeward`                                             | `@repo/planeward`    | React provider/hooks and server helpers (`requireViewer`, `handlePlanewardWebhook`)       |
-| `packages/db`                                                    | `@repo/db`           | Drizzle schema, client and migrations                                                     |
-| `packages/ui`                                                    | `@repo/ui`           | shadcn/ui components and the Tailwind v4 theme                                            |
-| `packages/typescript-config`, `eslint-config`, `prettier-config` | `@repo/*-config`     | Shared configs                                                                            |
+| Path                               | What it is                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `app/Planeward`                    | Viewer token verification, the Planeward API client, webhook processing         |
+| `app/Http/Middleware`              | `RequireViewer`, registered as the `viewer` route middleware                    |
+| `app/Http/Controllers`             | Pages, the Board example, dashboard, members, announce and the webhook route    |
+| `app/Http/Resources`               | JSON shapes the React code reads                                                |
+| `app/Models`                       | `Installation`, `WebhookDelivery`, `Post`                                       |
+| `database/migrations`              | Schema                                                                          |
+| `routes/web.php`, `routes/api.php` | Page routes and API routes                                                      |
+| `resources/js`                     | React app: `pages/`, `components/`, `components/ui/` (shadcn), `planeward/`     |
+| `resources/views/app.blade.php`    | The one Blade shell every page renders                                          |
+| `tests`                            | PHPUnit tests (`php artisan test`); React tests sit next to their code (Vitest) |
 
 ## Quickstart
 
-Requires Node 24+, pnpm 11, Docker and a tunnel ([cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) or [ngrok](https://ngrok.com/download)).
+Requires PHP 8.3+ with the `pdo_pgsql` extension, Composer, Node 24+, pnpm 11, Docker and a tunnel ([cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) or [ngrok](https://ngrok.com/download)).
 
-Planeward is hosted at `https://app.planeward.com`. It loads your app in an iframe and sends it webhooks, so it must reach your app over public `https`; `localhost` URLs are rejected. During development, expose your dev server through a tunnel.
+Planeward is hosted at `https://app.planeward.com`. It loads your app in an iframe and sends it webhooks, so it must reach your app over public `https`. It rejects `localhost` URLs, so during development you expose your dev server through a tunnel.
 
 1. Install and start the app:
 
    ```bash
+   composer install
    pnpm install
    cp .env.example .env
+   php artisan key:generate
    docker compose up -d   # Postgres on :5433
-   pnpm db:migrate
+   php artisan migrate
    pnpm dev               # app on http://localhost:3005
    ```
+
+   `pnpm dev` runs `php artisan serve --port=3005` and `vite build --watch` together. Vite writes the assets to `public/build`, so Laravel serves the pages and their assets from one origin and they load through the tunnel. Reload the page after an edit; there is no hot reload inside the iframe.
 
 2. In another terminal, start a tunnel to port 3005:
 
@@ -41,15 +57,7 @@ Planeward is hosted at `https://app.planeward.com`. It loads your app in an ifra
    ngrok http 3005                                  # prints https://<random>.ngrok-free.app
    ```
 
-3. Put the tunnel **hostname** (no `https://`, no path) in `.env`, then restart `pnpm dev`:
-
-   ```bash
-   ALLOWED_DEV_ORIGINS="abc-123.trycloudflare.com"
-   ```
-
-   Next.js only serves dev assets to `localhost` and the hosts listed here. Without it the app loads inside Planeward but never connects.
-
-4. Open the setup page through the tunnel (`https://abc-123.trycloudflare.com/`). It shows which env vars are set and the exact URLs to register.
+3. Open the setup page through the tunnel (`https://abc-123.trycloudflare.com/`). It shows which env vars are set and the exact URLs to register.
 
 ## Register in Planeward
 
@@ -57,29 +65,30 @@ Planeward is hosted at `https://app.planeward.com`. It loads your app in an ifra
    - Experience URL: `https://abc-123.trycloudflare.com/experience`
    - Dashboard URL: `https://abc-123.trycloudflare.com/dashboard`
    - Webhook URL: `https://abc-123.trycloudflare.com/api/webhooks/planeward`
-   - Both scopes: **Community — read members** (`COMMUNITY_MEMBERS_READ`) and **Community — post messages as the app** (`COMMUNITY_MESSAGES_WRITE`).
-2. Copy the app ID, app secret and webhook secret into `.env` (`PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`). They are shown once; rotate them from the app's menu if lost. Restart `pnpm dev`.
+   - Both scopes: **Community, read members** (`COMMUNITY_MEMBERS_READ`) and **Community, post messages as the app** (`COMMUNITY_MESSAGES_WRITE`).
+2. Copy the app ID, app secret and webhook secret into `.env` (`PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET`). Planeward shows them once. If you lose them, rotate them from the app's menu. Restart `pnpm dev`.
 3. Install it from the install link (or **Install into this workspace**). Installing needs a workspace with **Community** turned on (Business plan or higher).
-4. In **Community › Apps**, add it as a channel. Members see it in the community sidebar; staff open the dashboard from **Community › Apps**.
+4. In **Community › Apps**, add it as a channel. Members see it in the community sidebar. Staff open the dashboard from **Community › Apps**.
 
-Viewer tokens are verified against `https://app.planeward.com/api/auth/jwks` and API calls go to Planeward with your app secret. Both are outbound requests, so they work from your machine.
+The app verifies viewer tokens against `https://app.planeward.com/api/auth/jwks` and calls Planeward with your app secret. Both are outbound requests, so they work from your machine.
 
-Use one Planeward app per environment, e.g. "My App (dev)" pointing at your tunnel and "My App" pointing at production. A token issued for a different app fails with `PlanewardTokenAudienceError`.
+Use one Planeward app per environment, for example "My App (dev)" pointing at your tunnel and "My App" pointing at production. A token issued for a different app fails with `Token is for app "<aud>", but this backend expects "<appId>". Check PLANEWARD_APP_ID.`
 
 ### Tunnel tips
 
-- Quick tunnels get a new URL every run, so you would edit the app's URLs (in its menu, **Edit**) and `ALLOWED_DEV_ORIGINS` each time. For a stable URL, use a named Cloudflare tunnel on your own domain or a reserved ngrok domain.
-- Webhooks (`app.installed`, `app.uninstalled`, `community.membership.*`) are retried after 1 min, 10 min, 1 h and 6 h if your tunnel is down, so events sent while it was offline arrive later.
-- Only run the tunnel while you need it, and never commit `.env`.
+- Quick tunnels get a new URL every run, so you would edit the app's URLs (in its menu, **Edit**) each time. For a stable URL, use a named Cloudflare tunnel on your own domain or a reserved ngrok domain.
+- Planeward retries webhooks (`app.installed`, `app.uninstalled`, `community.membership.*`) after 1 min, 10 min, 1 h and 6 h, so events sent while your tunnel was down arrive later.
+- Run the tunnel only while you need it, and never commit `.env`.
 
 ## Deploying
 
-Deploy `apps/web` anywhere that runs Next.js with a public `https` URL, with a Postgres database:
+Deploy to any host that runs PHP 8.3+ behind public `https`, with a Postgres database (Laravel Cloud, Forge, a container on Railway or Fly, and so on):
 
-1. Set `PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET` and `DATABASE_URL` for your production Planeward app. Leave `ALLOWED_DEV_ORIGINS` unset; `PLANEWARD_BASE_URL` defaults to `https://app.planeward.com`.
-2. Run `pnpm db:migrate` against the production database.
-3. Point the production Planeward app at the deployed URLs (`/experience`, `/dashboard`, `/api/webhooks/planeward`).
-4. Do not add `X-Frame-Options` or a restrictive `frame-ancestors`: communities can live on custom domains.
+1. Set `APP_KEY`, `APP_ENV=production`, `APP_DEBUG=false`, `DB_URL`, and `PLANEWARD_APP_ID`, `PLANEWARD_APP_SECRET`, `PLANEWARD_WEBHOOK_SECRET` for your production Planeward app. `PLANEWARD_BASE_URL` defaults to `https://app.planeward.com`.
+2. Build: `composer install --no-dev --optimize-autoloader`, `pnpm install --frozen-lockfile`, `pnpm build`, then `php artisan config:cache` and `php artisan route:cache`.
+3. Run `php artisan migrate --force` against the production database.
+4. Point the production Planeward app at the deployed URLs (`/experience`, `/dashboard`, `/api/webhooks/planeward`).
+5. Do not add `X-Frame-Options` or a restrictive `frame-ancestors`. Communities can live on custom domains.
 
 ## How it works
 
@@ -89,12 +98,12 @@ Deploy `apps/web` anywhere that runs Next.js with a public `https` URL, with a P
 flowchart LR
   subgraph browser["Member's browser"]
     host["Planeward community page<br/>(host)"]
-    frame["Your app UI<br/>(iframe)"]
+    frame["Your React UI<br/>(iframe)"]
   end
 
-  subgraph yours["Your app (apps/web)"]
-    server["API routes + webhook route<br/>requireViewer() · handlePlanewardWebhook()"]
-    db[("Postgres<br/>@repo/db")]
+  subgraph yours["Your Laravel app"]
+    server["API routes + webhook route<br/>viewer middleware · WebhookProcessor"]
+    db[("Postgres")]
   end
 
   pw["Planeward<br/>app.planeward.com<br/>JWKS · Community API · webhooks"]
@@ -106,7 +115,7 @@ flowchart LR
   pw -->|"signed webhooks"| server
 ```
 
-In development, Planeward reaches your machine through the tunnel: `https://<tunnel>` forwards to `http://localhost:3005`, which serves both the iframe pages and the API routes.
+In development, Planeward reaches your machine through the tunnel. `https://<tunnel>` forwards to `http://localhost:3005`, which serves the iframe pages, their assets and the API routes.
 
 ### One request, step by step
 
@@ -115,8 +124,8 @@ sequenceDiagram
   autonumber
   actor Member
   participant Host as Planeward page (host)
-  participant App as Your app UI (iframe)
-  participant Server as Your API routes
+  participant App as Your React UI (iframe)
+  participant Server as Your Laravel API
   participant PW as Planeward API + JWKS
   participant DB as Your Postgres
 
@@ -128,8 +137,8 @@ sequenceDiagram
   Host->>App: postMessage planeward:app:token (token, view, channelId, theme)
   App->>Server: GET /api/posts (Authorization: Bearer token)
   Server->>PW: Verify signature with JWKS (cached)
-  Server->>Server: Check aud, expiry, installation not uninstalled
-  Server->>DB: Read posts WHERE installationId, channelId (from the token)
+  Server->>Server: Check aud, issuer, expiry, installation not uninstalled
+  Server->>DB: Read posts WHERE installation_id, channel_id (from the token)
   DB-->>Server: Rows
   Server-->>App: JSON
   opt Admin action, e.g. Announce as the app
@@ -140,37 +149,44 @@ sequenceDiagram
 
 ### In short
 
-1. **Handshake.** The page loads in the iframe and `PlanewardProvider` performs a `postMessage` handshake with the host. The host returns the context, theme and a short-lived **viewer token** (a JWT signed by Planeward with `aud` = your app ID).
+1. **Handshake.** Laravel renders `app.blade.php`, which mounts the React page. `PlanewardProvider` runs a `postMessage` handshake with the host, which returns the context, theme and a short-lived **viewer token** (a JWT that Planeward signs with `aud` set to your app ID).
 2. **Viewer token.** `useViewerFetch()` sends that token as `Authorization: Bearer <token>` on every call to your own API.
-3. **`requireViewer`.** Every API route starts with `requireViewer(request)`, which verifies the token against `PLANEWARD_BASE_URL` and `PLANEWARD_APP_ID` and returns the claims (or a 401/403 response).
-4. **Scoping.** `installationId` and `channelId` come **only** from the verified claims. All data (for example the Board `posts`) is read and written by those ids, so one community can never see another's data. `planewardForViewer(viewer)` builds the API client for the claims' installation.
-5. **Webhooks.** `/api/webhooks/planeward` uses `handlePlanewardWebhook`: it verifies the signature on the raw body, dedupes on `x-planeward-delivery` (stored in `webhook_deliveries`), records installs and uninstalls in `installations`, then calls your handler.
+3. **`viewer` middleware.** Every API route sits behind `viewer` (or `viewer:admin` for staff). `RequireViewer` verifies the token against `PLANEWARD_BASE_URL` and `PLANEWARD_APP_ID` and either stores the claims on the request or returns a 401/403 JSON response. Controllers read them with `Viewer::from($request)`.
+4. **Scoping.** `installationId` and `channelId` come **only** from the verified claims. The Board reads and writes `posts` by those ids, so one community never sees another's data. `Planeward::forViewer($viewer)` builds the API client for the claims' installation.
+5. **Webhooks.** `/api/webhooks/planeward` goes through `WebhookProcessor`. It checks the HMAC on the raw body, dedupes on `x-planeward-delivery` (stored in `webhook_deliveries`), records installs and uninstalls in `installations`, then dispatches the `WebhookReceived` event for your listeners.
+
+## Laravel notes for this app
+
+- **No sessions or cookies.** Browsers block third-party cookies in a cross-origin iframe, so `bootstrap/app.php` removes the session, cookie and CSRF middleware from the `web` group. API routes are stateless and authenticate each request with the viewer token. Don't add Sanctum, `auth` middleware or form posts that rely on a session.
+- **Validation errors are 400 `{ "error": "..." }`**, not Laravel's default 422, because the React code reads `error`. Controllers use `Validator::make` and `ApiError::make`.
+- **Trusted proxies.** `trustProxies(at: '*')` lets the app see `https` and the public host behind a tunnel or load balancer. Without it, asset URLs come out as `http://` and the browser blocks them.
+- **React pages.** `PageController` renders `app.blade.php` with a page name, and `resources/js/app.tsx` mounts the matching component from `resources/js/pages`. Pass server data as the third argument of `page()`. The setup page is the only one that uses it.
 
 ## Security notes
 
-- **One app ID per deployment.** Tokens are checked against `PLANEWARD_APP_ID` (`aud`). A token for another app fails with `PlanewardTokenAudienceError`: `Token is for app "<aud>", but this backend expects "<appId>". Check PLANEWARD_APP_ID.`
-- **Never trust ids from request bodies.** Use `viewer.installationId` / `viewer.channelId`, not values the client sends.
-- **Don't rely on cookies in the iframe.** Third-party cookies are blocked in most browsers. Authenticate each request with the viewer token.
-- **Leave the app frameable.** Don't set `X-Frame-Options`, and leave `frame-ancestors` open: communities can run on custom domains.
-- **Keep the app secret server-only.** `PLANEWARD_APP_SECRET` and `PLANEWARD_WEBHOOK_SECRET` must never reach client code.
+- **One app ID per deployment.** The middleware checks tokens against `PLANEWARD_APP_ID` (`aud`). A token for another app fails with `Token is for app "<aud>", but this backend expects "<appId>". Check PLANEWARD_APP_ID.`
+- **Never trust ids from request bodies.** Use `$viewer->installationId` and `$viewer->channelId`, not values the client sends.
+- **Don't rely on cookies in the iframe.** Authenticate each request with the viewer token.
+- **Leave the app frameable.** Don't set `X-Frame-Options`, and leave `frame-ancestors` open, because communities can run on custom domains.
+- **Keep secrets server-only.** `PLANEWARD_APP_SECRET` and `PLANEWARD_WEBHOOK_SECRET` live in `.env` and `config/planeward.php`. Never pass them to a Blade view or a `VITE_` variable.
 - **Webhooks only process after signature verification.** Unsigned or tampered deliveries get a 401 and nothing is stored.
-- **Production webhook URLs must be public https.** `localhost` works only for development.
+- **Production webhook URLs must be public https.** `localhost` works only behind a tunnel during development.
 
 ## Customizing
 
-- Replace the Board example (`apps/web` experience, `/api/posts`, and the `posts` table) with your feature. Keep `requireViewer` and claims-derived ids in every route.
-- Add tables in `packages/db/src/schema.ts`, then run `pnpm db:generate` and `pnpm db:migrate`.
+- Replace the Board example (`PostController`, `Post`, the `posts` table and `resources/js/components/board.tsx`) with your feature. Keep the `viewer` middleware and claims-derived ids on every route.
+- Add tables with `php artisan make:migration`, then run `php artisan migrate`.
+- React to other webhooks by listening for `App\Planeward\Webhooks\WebhookReceived`. See `PlanewardWebhookController` for an example.
 
 ## Scripts
 
-| Command                                | What it does                          |
-| -------------------------------------- | ------------------------------------- |
-| `pnpm dev`                             | Run everything in dev mode            |
-| `pnpm build`                           | Build all packages and the app        |
-| `pnpm typecheck` / `lint` / `test`     | Checks across the workspace           |
-| `pnpm format:check` / `format:write`   | Prettier                              |
-| `pnpm db:generate` / `pnpm db:migrate` | Generate and apply Drizzle migrations |
-
-## Releasing the SDK
-
-`@planeward/app-sdk` is published to npm from this repo by `.github/workflows/app-sdk-release.yml` on `app-sdk-v*.*.*` tags. See [`packages/app-sdk/README.md`](packages/app-sdk/README.md) for the steps.
+| Command                              | What it does                                    |
+| ------------------------------------ | ----------------------------------------------- |
+| `pnpm dev`                           | Laravel on port 3005 plus `vite build --watch`  |
+| `pnpm build`                         | Build the React assets into `public/build`      |
+| `php artisan test`                   | PHPUnit tests                                   |
+| `pnpm test`                          | Vitest tests for the React code                 |
+| `pnpm typecheck` / `pnpm lint`       | TypeScript and ESLint                           |
+| `vendor/bin/pint`                    | Format PHP (`--test` to check only)             |
+| `pnpm format:check` / `format:write` | Prettier for TypeScript, CSS, JSON and Markdown |
+| `php artisan migrate`                | Apply migrations                                |

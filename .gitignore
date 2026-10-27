@@ -1,26 +1,31 @@
-# dependencies
-node_modules/
-.pnpm-store/
-
-# next.js
-.next/
-out/
-next-env.d.ts
-
-# builds
-dist/
-build/
-*.tsbuildinfo
-
-# turbo
-.turbo/
-
-# env files (keep the example)
-.env*
-!.env.example
-
-# misc
+*.log
 .DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.codex
+/.cursor/
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+_ide_helper.php
+Homestead.json
+Homestead.yaml
+Thumbs.db
+.env.*
+!.env.example
 *.pem
-npm-debug.log*
 .vercel

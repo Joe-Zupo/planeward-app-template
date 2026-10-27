@@ -1,30 +1,54 @@
 {
-  "$schema": "https://json.schemastore.org/package.json",
+  "$schema": "https://www.schemastore.org/package.json",
   "name": "planeward-app-template",
   "private": true,
   "type": "module",
-  "prettier": "@repo/prettier-config/base",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "format:check": "turbo run format:check",
-    "format:write": "turbo run format:write",
-    "format:root": "prettier --check \"*.{md,json,yaml,yml}\" \".github/**/*.yml\"",
-    "db:generate": "turbo run db:generate --filter=@repo/db",
-    "db:migrate": "turbo run db:migrate --filter=@repo/db"
-  },
-  "devDependencies": {
-    "@repo/prettier-config": "workspace:*",
-    "@typescript/native": "catalog:",
-    "prettier": "catalog:",
-    "turbo": "^2.11.10",
-    "typescript": "catalog:"
+    "dev": "concurrently -k -n server,assets -c blue,magenta \"php artisan serve --port=3005\" \"vite build --watch\"",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write ."
   },
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@11.19.0"
+  "packageManager": "pnpm@11.19.0",
+  "dependencies": {
+    "@planeward/app-sdk": "^0.2.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.61.0",
+    "radix-ui": "^1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "laravel-vite-plugin": "^3.2.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
 }
