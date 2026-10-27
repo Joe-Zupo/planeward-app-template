@@ -32,6 +32,7 @@ After editing files, run Prettier on the changed paths: `pnpm exec prettier --wr
 ## Rules
 
 - **Every API route calls `requireViewer(request)`** from `@repo/planeward/server` first (`{ role: "admin" }` for staff-only routes). Return its `response` when `ok` is false.
+- **Demo mode** (`PLANEWARD_AUTH_MODE="demo"`) makes `requireViewer` return a fixed demo viewer without checking a token. It lives in `packages/planeward/src/demo.ts` and is refused on Vercel production. Never add another way to skip `requireViewer`, and never let demo mode read installation or channel ids from the request.
 - **Scope data by claims only.** `installationId`, `channelId` and the author (`sub`) come from the verified viewer, never from the request body, query or headers. The one deliberate exception is an admin choosing a _target_ channel (`/api/announce`): the installation still comes from the claims, and Planeward enforces which channels the app may post to.
 - Use `planewardForViewer(viewer)` for Planeward API calls; never build a client from a client-supplied installation id.
 - Webhooks go through `handlePlanewardWebhook`; do not process a payload before signature verification.

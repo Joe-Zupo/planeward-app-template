@@ -15,6 +15,13 @@ export const env = createEnv({
     PLANEWARD_WEBHOOK_SECRET: z.string().min(1),
     /** Planeward deployment that issues viewer tokens and serves the API. */
     PLANEWARD_BASE_URL: z.url().default("https://app.planeward.com"),
+    /**
+     * "demo" skips the viewer token and acts as a demo viewer (previews and
+     * local only; refused when VERCEL_ENV is "production").
+     */
+    PLANEWARD_AUTH_MODE: z.enum(["planeward", "demo"]).default("planeward"),
+    /** Set by Vercel: "production", "preview" or "development". */
+    VERCEL_ENV: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

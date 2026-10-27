@@ -2,13 +2,17 @@ import { eq, sql } from "drizzle-orm";
 
 import {
   createPlanewardClient,
+  PlanewardApiError,
   type PlanewardClient,
 } from "@planeward/app-sdk/server";
 import { db, installations, webhookDeliveries, type Database } from "@repo/db";
 
+import { demoViewerFromToken, resolveAuthMode, type AuthMode } from "./demo";
 import { env } from "./env";
 import {
   authenticateViewer,
+  jsonError,
+  readBearerToken,
   unauthorized,
   type RequireViewerOptions,
   type RequireViewerResult,
@@ -21,6 +25,7 @@ import {
 } from "./webhook";
 
 export type { PlanewardClient } from "@planeward/app-sdk/server";
+export type { AuthMode } from "./demo";
 export type {
   RequireViewerOptions,
   RequireViewerResult,
@@ -42,6 +47,15 @@ export async function requireViewer(
   request: Request,
   options: RequireViewerOptions = {}
 ): Promise<RequireViewerResult> {
+  if (authMode() === "demo") {
+    // No Planeward token to verify: act as the demo viewer the page asked for.
+    const viewer = demoViewerFromToken(readBearerToken(request));
+    if (options.role === "admin" && viewer.role !== "admin") {
+      return { ok: false, response: jsonError(403, "Staff only") };
+    }
+    return { ok: true, viewer };
+  }
+
   const result = await authenticateViewer(request, options, {
     appId: env.PLANEWARD_APP_ID,
     baseUrl: env.PLANEWARD_BASE_URL,
@@ -70,11 +84,36 @@ export async function requireViewer(
  * id comes from the verified token only, never from request input.
  */
 export function planewardForViewer(viewer: Viewer): PlanewardClient {
+  if (authMode() === "demo") {
+    // There is no real installation to call the API for.
+    const unavailable = () =>
+      Promise.reject(
+        new PlanewardApiError(
+          503,
+          "The Planeward API is not available in demo mode. Install the app and set PLANEWARD_AUTH_MODE=planeward."
+        )
+      );
+    return {
+      community: {
+        members: { list: unavailable, get: unavailable },
+        messages: { create: unavailable },
+      },
+    };
+  }
   return createPlanewardClient({
     secret: env.PLANEWARD_APP_SECRET,
     installationId: viewer.installationId,
     baseUrl: env.PLANEWARD_BASE_URL,
   });
+}
+
+/**
+ * "planeward" verifies viewer tokens. "demo" skips Planeward sign-in, for
+ * previews before the app can be installed. Throws on a production deployment
+ * set to demo, so the bypass can never go live by accident.
+ */
+export function authMode(): AuthMode {
+  return resolveAuthMode(env.PLANEWARD_AUTH_MODE, env.VERCEL_ENV);
 }
 
 /** Drizzle-backed {@link WebhookStore}. */

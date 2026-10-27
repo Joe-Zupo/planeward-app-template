@@ -72,6 +72,26 @@ Use one Planeward app per environment, e.g. "My App (dev)" pointing at your tunn
 - Webhooks (`app.installed`, `app.uninstalled`, `community.membership.*`) are retried after 1 min, 10 min, 1 h and 6 h if your tunnel is down, so events sent while it was offline arrive later.
 - Only run the tunnel while you need it, and never commit `.env`.
 
+## Demo mode (before the app can be installed)
+
+Installing an app needs a workspace with Community turned on. Until you have one, run the app in demo mode with `PLANEWARD_AUTH_MODE="demo"`:
+
+- Every request acts as a demo viewer with fixed ids (`demo_installation`, `demo_channel`). No Planeward token is checked.
+- A banner on every page says demo mode is on and switches between the admin and member demo viewers.
+- `/experience` and `/dashboard` work in a normal browser tab. The Board and the dashboard's own data use the database as usual.
+- Calls to the Planeward API (the members list, "Announce as the app") return 503, because there is no real installation to act for.
+- The app refuses to run in demo mode on a Vercel production deployment (`VERCEL_ENV=production`): every page and API route fails with an error naming the variable. Set it only for Preview and local development.
+
+Demo mode skips authentication on purpose. Anyone with the URL can use the app as the demo viewer, so keep real data out of a demo database. Switch to `PLANEWARD_AUTH_MODE="planeward"` before you register and install the app.
+
+The workflow this supports:
+
+1. Build locally. Check the setup page and run the tests.
+2. Push your branch; Vercel deploys a preview with demo mode on.
+3. Turn demo mode off on the preview so the Planeward viewer token is required.
+4. Register a dev app against the preview URLs, install it, and test inside Planeward.
+5. When the app is approved, deploy production and register a production app with its own secrets.
+
 ## Deploying
 
 Deploy `apps/web` anywhere that runs Next.js with a public `https` URL, with a Postgres database:

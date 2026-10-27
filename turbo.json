@@ -16,7 +16,9 @@
         "PLANEWARD_APP_ID",
         "PLANEWARD_APP_SECRET",
         "PLANEWARD_WEBHOOK_SECRET",
-        "PLANEWARD_BASE_URL"
+        "PLANEWARD_BASE_URL",
+        "PLANEWARD_AUTH_MODE",
+        "VERCEL_ENV"
       ]
     },
     "dev": {
@@ -30,7 +32,9 @@
         "PLANEWARD_APP_ID",
         "PLANEWARD_APP_SECRET",
         "PLANEWARD_WEBHOOK_SECRET",
-        "PLANEWARD_BASE_URL"
+        "PLANEWARD_BASE_URL",
+        "PLANEWARD_AUTH_MODE",
+        "VERCEL_ENV"
       ]
     },
     "typecheck": {
